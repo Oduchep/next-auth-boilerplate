@@ -1,13 +1,12 @@
-import NextAuth, { AuthOptions } from 'next-auth';
+import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtDecode } from 'jwt-decode';
 import dayjs from 'dayjs';
-
 import { UserInfoProps } from '@/app/next-auth';
 import { signInUser } from '@/app/auth/hooks';
 import { getUserProfile } from '@/app/dashboard/profile/hooks';
 
-const nextAuthConfig: AuthOptions = {
+const nextAuthConfig: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 0.5 * 24 * 60 * 60, // 12 hours
@@ -26,22 +25,22 @@ const nextAuthConfig: AuthOptions = {
         >;
 
         try {
-          // Handle sign-in with token (e.g., from passwordless sign-in or external source)
           if (signInToken) {
             const res = await getUserProfile(signInToken);
-            if (!res.success) {
-              throw new Error(res.message || 'Failed to fetch user profile.');
+            if (!res.data.success) {
+              throw new Error(
+                res.data.message || 'Failed to fetch user profile.',
+              );
             }
-            return { ...res.data, access_token: signInToken };
+            return { ...res.data.data, access_token: signInToken };
           }
 
-          // Handle sign-in with email and password
           const res = await signInUser({ email, password });
-          if (!res.success) {
-            throw new Error(res.message || 'Failed to sign in.');
+          if (!res.data.success) {
+            throw new Error(res.data.message || 'Failed to sign in.');
           }
 
-          const token = res.data.token;
+          const token = res.data.data.tokenEncryption;
           const user = jwtDecode<UserInfoProps>(token);
           return { ...user, access_token: token };
         } catch (error) {
@@ -54,22 +53,13 @@ const nextAuthConfig: AuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      // Update token during session update
       if (trigger === 'update' && session) {
         return { ...token, ...session };
       }
 
-      // Initial sign-in: save user information in token
       if (user) {
         token = { ...token, ...user };
       }
-
-      //   // Handle token expiration
-      //   const tokenExpiry = dayjs(token.exp * 1000); // Assuming JWT has `exp` field
-      //   if (dayjs().isAfter(tokenExpiry.subtract(30, 'minutes'))) {
-      //     // Refresh the token if it's about to expire in less than 30 minutes
-      //     // Implement your token refresh logic here (if supported by your API)
-      //   }
 
       return token;
     },

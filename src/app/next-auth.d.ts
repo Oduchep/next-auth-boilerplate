@@ -2,6 +2,12 @@
 import NextAuth from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
 export interface UserInfoProps {
   id: string;
   name: string;
